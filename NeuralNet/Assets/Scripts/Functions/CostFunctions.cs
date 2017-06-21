@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
 using Mathf = UnityEngine.Mathf;
 
 
 namespace NeuralNet
 {
+	//TODO: Need derivatives?
+
 	/// <summary>
 	/// Gets the "cost", or error, in a neural net output
 	///     when compared to the expected output.
@@ -11,6 +16,7 @@ namespace NeuralNet
 	public interface ICostFunc
 	{
 		float Cost(Vector expectedOutputs, Vector actualOutputs);
+		float TotalCost(List<float> costs);
 	}
 
 	/// <summary>
@@ -27,6 +33,10 @@ namespace NeuralNet
 				err += f * f;
 			}
 			return err;
+		}
+		public float TotalCost(List<float> costs)
+		{
+			return costs.Sum() / (float)(2 * costs.Count);
 		}
 	}
 }

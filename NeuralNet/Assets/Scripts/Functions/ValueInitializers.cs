@@ -1,10 +1,11 @@
 ﻿using System;
+using RNG = System.Random;
 using Mathf = UnityEngine.Mathf;
 
 namespace NeuralNet
 {
 	/// <summary>
-	/// Initializes the weights and biases for a neural network.
+	/// Initializes the weights and biases for a neural network using some heuristic.
 	/// </summary>
 	public interface IValueInitializer
 	{
@@ -16,9 +17,12 @@ namespace NeuralNet
 		/// Note that layer 0 is the input layer, which doesn't need weights/biases,
 		///     so this parameter should always be greater than 0.
 		/// </param>
-		void Init(System.Random rng, Matrix weights, Vector biases, int layerIndex);
+		void Init(RNG rng, Matrix weights, Vector biases, int layerIndex);
 	}
 
+	/// <summary>
+	/// Gives the weights and biases random values with a gaussian distribution.
+	/// </summary>
 	public class ValueInitializer_Gaussian : IValueInitializer
 	{
 		public float Mean, StandardDeviation;
@@ -27,7 +31,7 @@ namespace NeuralNet
 			Mean = mean;
 			StandardDeviation = standardDeviation;
 		}
-		public void Init(System.Random rng, Matrix weights, Vector biases, int layerIndex)
+		public void Init(RNG rng, Matrix weights, Vector biases, int layerIndex)
 		{
 			for (int i = 0; i < biases.Count; ++i)
 				biases[i] = rng.NextGaussian(Mean, StandardDeviation);
