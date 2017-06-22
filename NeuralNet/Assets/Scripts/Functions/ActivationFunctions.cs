@@ -4,15 +4,15 @@ using Mathf = UnityEngine.Mathf;
 namespace NeuralNet
 {
 	/// <summary>
-	/// A filter for the output of a node.
-	/// More specifically, for a whole LAYER of nodes.
+	/// A filter for the weighted input into a node.
+	/// Operates on a layer of nodes at a time.
 	/// </summary>
 	public interface IActivationFunc
 	{
 		/// <summary>
-		/// Gets the value for the given node outputs.
+		/// Gets the output for the given weighted input.
 		/// </summary>
-		void Evaluate(Vector nodeLayerOutput, Vector outValue);
+		void Evaluate(Vector nodeLayerOutput, Vector out_Value);
 		/// <summary>
 		/// Gets the value and the derivative for the given node outputs.
 		/// </summary>
@@ -25,21 +25,21 @@ namespace NeuralNet
 		/// <param name="outDerivative">
 		/// The derivative of the filtered output of each node.
 		/// </param>
-		void Evaluate(Vector nodeLayerOutput, Vector outValue, Vector outDerivative);
+		void Evaluate(Vector nodeLayerOutput, Vector out_Value, Vector out_Derivative);
 	}
 
 	public class ActivationFunc_Logistic : IActivationFunc
 	{
-		public void Evaluate(Vector nodeOutputs, Vector outValue)
+		public void Evaluate(Vector nodeOutputs, Vector out_Value)
 		{
 			for (int i = 0; i < nodeOutputs.Count; ++i)
-				outValue[i] = 1.0f / (1.0f + Mathf.Exp(-nodeOutputs[i]));
+				out_Value[i] = 1.0f / (1.0f + Mathf.Exp(-nodeOutputs[i]));
 		}
-		public void Evaluate(Vector nodeOutputs, Vector outValue, Vector outDerivative)
+		public void Evaluate(Vector nodeOutputs, Vector out_Value, Vector out_Derivative)
 		{
-			Evaluate(nodeOutputs, outValue);
+			Evaluate(nodeOutputs, out_Value);
 			for (int i = 0; i < nodeOutputs.Count; ++i)
-				outDerivative[i] = outValue[i] * (1.0f - outValue[i]);
+				out_Derivative[i] = out_Value[i] * (1.0f - out_Value[i]);
 		}
 	}
 }

@@ -65,6 +65,7 @@ namespace NeuralNet
 		}
 
 
+		//TODO: Replace these with methods, to support more GC-friendly code.
 		public static Vector operator +(Vector a, Vector b) { return new Vector(a, b, (_a, _b) => _a + _b); }
 		public static Vector operator -(Vector a, Vector b) { return new Vector(a, b, (_a, _b) => _a - _b); }
 		public static Vector operator *(Vector a, Vector b) { return new Vector(a, b, (_a, _b) => _a * _b); }

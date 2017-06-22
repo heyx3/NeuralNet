@@ -2,21 +2,27 @@
 using System.Collections.Generic;
 using System.Linq;
 
+using Assert = UnityEngine.Assertions.Assert;
 using Mathf = UnityEngine.Mathf;
 
 
 namespace NeuralNet
 {
-	//TODO: Need derivatives?
-
 	/// <summary>
 	/// Gets the "cost", or error, in a neural net output
 	///     when compared to the expected output.
 	/// </summary>
 	public interface ICostFunc
 	{
-		float Cost(Vector expectedOutputs, Vector actualOutputs);
-		float TotalCost(List<float> costs);
+		/// <summary>
+		/// Gets the "error" in the network, given the expected output and the actual output.
+		/// Also gets the rate of change of this "error" with respect to the actual outputs.
+		/// </summary>
+		/// <param name="out_Derivatives">
+		/// Must be the same size as "expectedOutputs" and "actualOutputs".
+		/// </param>
+		void GetCost(Vector expectedOutputs, Vector actualOutputs,
+					 out float out_Cost, Vector out_Derivatives);
 	}
 
 	/// <summary>
@@ -24,19 +30,21 @@ namespace NeuralNet
 	/// </summary>
 	public class CostFunc_Quadratic : ICostFunc
 	{
-		public float Cost(Vector expected, Vector actual)
+		public void GetCost(Vector expected, Vector actual,
+							out float out_Cost, Vector out_Derivatives)
 		{
-			float err = 0.0f;
+			Assert.AreEqual(expected.Count, actual.Count, "Expected and actual must be same size!");
+			Assert.AreEqual(expected.Count, out_Derivatives.Count,
+							"Expected and derivatives must be same size!");
+
+			out_Cost = 0.0f;
 			for (int i = 0; i < expected.Count; ++i)
 			{
-				float f = expected[i] = actual[i];
-				err += f * f;
+				out_Derivatives[i] = expected[i] - actual[i];
+				out_Cost += out_Derivatives[i];
 			}
-			return err;
-		}
-		public float TotalCost(List<float> costs)
-		{
-			return costs.Sum() / (float)(2 * costs.Count);
+			//Halve the cost, so we don't have to double each derivative.
+			out_Cost *= 0.5f;
 		}
 	}
 }

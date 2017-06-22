@@ -39,22 +39,20 @@ namespace NeuralNet
 
 		/// <summary>
 		/// Gets the outputs of this layer given the previous layer's outputs.
-		/// Also gets the derivatives of the outputs with respect to the node's activation.
+		/// Also gets the derivatives of the outputs with respect to the weighted inputs.
+		/// The "Weighted input" of a node is the combination of all input nodes plus the bias;
+		///     it is the value that gets filtered by the ActivationFunc into an output value.
 		/// </summary>
 		public void Evaluate(Vector previousLayerOutputs,
-						     ref Vector values, ref Vector activationFuncDerivatives)
+						     Vector out_WeightedInputs, Vector out_Outputs,
+							 Vector out_ActivationFuncDerivatives)
 		{
 			Assert.AreEqual(Biases.Count, previousLayerOutputs.Count);
 
-			//Make sure the output vectors are initialized.
-			if (values == null || values.Count != NNodes)
-				values = new Vector(NNodes);
-			if (activationFuncDerivatives == null || activationFuncDerivatives.Count != NNodes)
-				activationFuncDerivatives = new Vector(NNodes);
-
 			//Get the activation, and evaluate it with the activation function.
-			ActivationFunc.Evaluate(new Vector(Weights, previousLayerOutputs) + Biases,
-									values, activationFuncDerivatives);
+			out_WeightedInputs = new Vector(Weights, previousLayerOutputs) + Biases;
+			ActivationFunc.Evaluate(out_WeightedInputs, out_Outputs,
+									out_ActivationFuncDerivatives);
 		}
 	}
 }

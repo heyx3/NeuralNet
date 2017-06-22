@@ -18,54 +18,95 @@ namespace NeuralNet
 		/// </summary>
 		public List<NeuronLayer> Layers { get; private set; }
 
+		/// <summary>
+		/// The expected number of nodes in the first layer, a.k.a. the input to this network.
+		/// </summary>
+		public int NInputNodes { get; private set; }
+		/// <summary>
+		/// Gets the number of nodes in the layer before the given one.
+		/// </summary>
+		/// <param name="layerI">
+		/// The layer. Note that passing a value of 0 yields the size of the input layer.
+		/// </param>
+		public int NNodesInPreviousLayer(int layerI)
+		{
+			return (layerI == 0 ?
+						NInputNodes :
+						Layers[layerI - 1].NNodes);
+		}
+
+
 		public NeuronNetwork(RNG rng,
 							 IActivationFunc activationFunc, IValueInitializer valueInitalizer,
 							 params int[] layerSizes)
 		{
-			Layers = new List<NeuronLayer>(layerSizes.Length);
+			NInputNodes = layerSizes[0];
+
+			Layers = new List<NeuronLayer>(layerSizes.Length - 1);
 			for (int i = 1; i < layerSizes.Length; ++i)
 			{
 				Matrix weights = new Matrix(layerSizes[i], layerSizes[i - 1]);
 				Vector biases = new Vector(layerSizes[i]);
 				valueInitalizer.Init(rng, weights, biases, i);
 
-				Layers[i - 1] = new NeuronLayer(weights, biases, activationFunc);
+				Layers.Add(new NeuronLayer(weights, biases, activationFunc));
 			}
 		}
+
 
 		/// <summary>
 		/// Gets the output of this network given the input.
 		/// </summary>
-		/// <param name="out_LayerValues">
+		/// <param name="out_LayerWeightedInputs">
+		/// The weighted inputs into each node in each layer,
+		///     in order (ignoring the input layer).
+		/// Assumes it already has the right number of elements
+		///     and each element has the right number of components.
+		/// </param>
+		/// <param name="out_LayerOutputs">
 		/// Each node layer's output, in order (ignoring the input layer).
-		/// Assumes it already has the right number of elements.
-		/// The vectors will be resized if they're the wrong size.
+		/// Assumes it already has the right number of elements
+		///     and each element has the right number of components.
 		/// </param>
 		/// <param name="out_LayerDerivatives">
-		/// The derivative of each node's activation function output,
-		///     with respect to the node's raw output.
-		/// Assumes it already has the right number of elements,
-		///     and that each element has the right number of components.
-		/// The vectors will be resized if they're the wrong size.
+		/// The derivative of each node layer's outputs,
+		///     with respect to their weighted inputs.
+		/// Assumes it already has the right number of elements
+		///     and each element has the right number of components.
 		/// </param>
 		public void Evaluate(Vector inputs,
-							 List<Vector> out_LayerValues, List<Vector> out_LayerDerivatives)
+							 List<Vector> out_LayerWeightedInputs,
+							 List<Vector> out_LayerOutputs,
+							 List<Vector> out_LayerDerivatives)
 		{
 			//Make sure everything is sized properly.
-			Assert.AreEqual(out_LayerValues.Count, out_LayerDerivatives.Count,
-							"Value list and Derivative list have different sizes");
+			Assert.AreEqual(NInputNodes, inputs.Count, "Wrong number of inputs in sample");
+			Assert.AreEqual(Layers.Count, out_LayerWeightedInputs.Count,
+							"Layers list and Inputs list have different sizes");
+			Assert.AreEqual(out_LayerWeightedInputs.Count, out_LayerOutputs.Count,
+							"Inputs list and Ouputs list have different sizes");
+			Assert.AreEqual(out_LayerOutputs.Count, out_LayerDerivatives.Count,
+							"Outputs list and Derivatives list have different sizes");
+			for (int i = 0; i < out_LayerWeightedInputs.Count; ++i)
+			{
+				Assert.AreEqual(Layers[i].NNodes, out_LayerWeightedInputs[i].Count,
+								"WeightedInput list has wrong size at element " + i.ToString());
+				Assert.AreEqual(Layers[i].NNodes, out_LayerOutputs[i].Count,
+								"Output list has wrong size at element " + i.ToString());
+				Assert.AreEqual(Layers[i].NNodes, out_LayerDerivatives[i].Count,
+								"Derivatives list has wrong size at element " + i.ToString());
+			}
 
 			//Evaluate each layer in order.
 			Vector previousLayerOutput = inputs;
 			for (int i = 0; i < Layers.Count; ++i)
 			{
-				Vector value = out_LayerValues[i],
-					   derivative = out_LayerDerivatives[i];
-				Layers[i].Evaluate(previousLayerOutput, ref value, ref derivative);
-				out_LayerValues[i] = value;
-				out_LayerDerivatives[i] = derivative;
+				Layers[i].Evaluate(previousLayerOutput,
+								   out_LayerWeightedInputs[i],
+								   out_LayerOutputs[i],
+								   out_LayerDerivatives[i]);
 
-				previousLayerOutput = value;
+				previousLayerOutput = out_LayerOutputs[i];
 			}
 		}
 	}
