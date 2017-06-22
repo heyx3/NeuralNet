@@ -86,6 +86,10 @@ namespace NeuralNet
 				{
 					int inputMagicNumber = inputs.ReadInt32_BE(),
 						outputMagicNumber = outputs.ReadInt32_BE();
+					UnityEngine.Assertions.Assert.AreEqual(2051, inputMagicNumber,
+														   "Input magic number is wrong");
+					UnityEngine.Assertions.Assert.AreEqual(2049, outputMagicNumber,
+														   "Output magic number is wrong");
 
 					int nInputs = inputs.ReadInt32_BE(),
 						nOutputs = outputs.ReadInt32_BE();
