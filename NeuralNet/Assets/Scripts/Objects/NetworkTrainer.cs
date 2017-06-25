@@ -16,6 +16,7 @@ namespace NeuralNet
 	{
 		public NeuronNetwork Network;
 		public ICostFunc CostFunc;
+		public IGradientDescent GradientDescent;
 
 		/// <summary>
 		/// Inputs paired with the output they're supposed to have.
@@ -29,15 +30,22 @@ namespace NeuralNet
 		/// The number of epochs this trainer has run so far.
 		/// </summary>
 		public uint NEpochs { get; private set; }
+		/// <summary>
+		/// The number of iterations in the current epoch this trainer has run so far.
+		/// </summary>
+		public uint NIterations { get; private set; }
 
 
-		public NetworkTrainer(NeuronNetwork network, ICostFunc costFunc,
+		public NetworkTrainer(NeuronNetwork network,
+							  ICostFunc costFunc, IGradientDescent gradientDescent,
 							  IEnumerable<KeyValuePair<Vector, Vector>> trainingSamples,
 							  IEnumerable<KeyValuePair<Vector, Vector>> validationSamples)
 		{
 			Network = network;
 			CostFunc = costFunc;
+			GradientDescent = gradientDescent;
 			NEpochs = 0;
+			NIterations = 0;
 
 			TrainingSamples = new Dictionary<Vector, Vector>();
 			foreach (var pair in trainingSamples)
@@ -62,6 +70,7 @@ namespace NeuralNet
 			var unusedSamples = new List<KeyValuePair<Vector, Vector>>(TrainingSamples.Count);
 			var currentSamples = new List<KeyValuePair<Vector, Vector>>(miniBatchSize);
 
+			NIterations = 0;
 			while (unusedSamples.Count > 0)
 			{
 				//Get the samples to use for this iteration.
@@ -79,6 +88,8 @@ namespace NeuralNet
 				}
 
 				RunIteration(currentSamples);
+
+				NIterations += 1;
 			}
 
 			NEpochs += 1;
@@ -145,9 +156,8 @@ namespace NeuralNet
 								 out cost, costDerivative);
 				costs.Add(cost);
 
-				//Do backpropagation to get the derivative of the biases and weights.
-				DoBackpropagation(cost, sample.Key,
-								  weightedInputs, outputs, derivatives, costDerivative,
+				//Do backpropagation to get the derivatives of the biases and weights.
+				DoBackpropagation(sample.Key, weightedInputs, outputs, derivatives, costDerivative,
 								  biasDerivatives, weightDerivatives);
 			}
 
@@ -166,12 +176,43 @@ namespace NeuralNet
 				}
 			}
 
-			//TODO: Gradient descent.
+			//Run gradient descent.
+			GradientDescent.ModifyNetwork(Network, NIterations, NEpochs,
+										  biasDerivatives, weightDerivatives);
 
 			return costs.Sum() / (float)costs.Count;
 		}
-		private void DoBackpropagation(float currentCost,
-									   Vector sampleInput,
+		/// <summary>
+		/// Efficiently finds the derivative of the cost function with respect to
+		///     every bias and weight in the network.
+		/// </summary>
+		/// <param name="networkInputs">
+		/// The inputs into the network (a.k.a. the first layer of neuron outputs).
+		/// </param>
+		/// <param name="layerWeightedInputs">
+		/// The weighted input into every node.
+		/// </param>
+		/// <param name="layerOutputs">
+		/// The output of every node. Equal to the weighted input, fed into the activation function.
+		/// </param>
+		/// <param name="layerDerivatives">
+		/// The derivative of every node's output, with respect to its weighted input.
+		/// </param>
+		/// <param name="costDerivatives">
+		/// The derivatives of the cost function with respect to each output of the final layer.
+		/// </param>
+		/// <param name="out_BiasDerivatives">
+		/// The calculated derivatives of the cost function with respect to each bias in the network.
+		/// It is assumed that the list and its elements are already initialized to the proper size.
+		/// The derivatives are added to the values already in there.
+		/// </param>
+		/// <param name="out_WeightDerivatives">
+		/// The calculated derivatives of the cost function
+		///     with respect to every weight between two nodes.
+		/// It is assumed that the list and its elements are already initialized to the proper size.
+		/// The derivatives are added to the values already in there.
+		/// </param>
+		private void DoBackpropagation(Vector networkInputs,
 									   List<Vector> layerWeightedInputs,
 									   List<Vector> layerOutputs,
 									   List<Vector> layerDerivatives,
@@ -182,9 +223,9 @@ namespace NeuralNet
 			//First calculate "error", which is the derivative of the cost
 			//    with respect to each node's weighted input.
 
-			List<Vector> errors = new List<Vector>(Network.Layers.Count);
-			for (int i = 0; i < Network.Layers.Count; ++i)
-				errors.Add(new Vector(Network.Layers[i].NNodes));
+			var errors = new List<Vector>(Network.Layers.Count);
+			for (int layerI = 0; layerI < Network.Layers.Count; ++layerI)
+				errors.Add(new Vector(Network.Layers[layerI].NNodes));
 
 			//The simplest layer to calculate error for is the final "output" layer --
 			//    the layer directly responsible for cost.
@@ -215,11 +256,29 @@ namespace NeuralNet
 			}
 
 			//The derivative of cost with respect to a node's bias is equal to the error.
-			var derivativeCostByBiases = errors;
+			for (int layerI = 0; layerI < Network.Layers.Count; ++layerI)
+				for (int componentI = 0; componentI < Network.Layers[layerI].NNodes; ++componentI)
+					out_BiasDerivatives[layerI][componentI] += errors[layerI][componentI];
 
 			//The derivative of cost with respect to a weight from one node into another
 			//    is equal to the error times the input node's weighted input.
-			//TODO: Finish.
+			for (int layerI = 0; layerI < Network.Layers.Count; ++layerI)
+			{
+				var layer = Network.Layers[layerI];
+				Vector prevLayerOutput = (layerI == 0 ?
+										      networkInputs :
+										      layerOutputs[layerI - 1]);
+
+				for (int nodeI = 0; nodeI < layer.NNodes; ++nodeI)
+				{
+					for (int previousNodeI = 0; previousNodeI < prevLayerOutput.Count; ++previousNodeI)
+					{
+						out_WeightDerivatives[layerI][nodeI, previousNodeI] +=
+							errors[layerI][nodeI] *
+							prevLayerOutput[nodeI];
+					}
+				}
+			}
 		}
 	}
 }
