@@ -18,8 +18,16 @@ namespace Tests
 
 		private void Start()
 		{
+			string errMsg;
 			data = new NeuralNet.HandwritingData(Path.Combine(Application.streamingAssetsPath,
-															  "NeuralNet Data"));
+															  "NeuralNet Data"),
+												 out errMsg);
+			if (errMsg.Length > 0)
+			{
+				Debug.LogError("Error loading handwriting data: " + errMsg);
+				Destroy(this);
+				return;
+			}
 
 			currentImage = new Texture2D(data.PixelWidth, data.PixelHeight, TextureFormat.ARGB32,
 										 false, true);

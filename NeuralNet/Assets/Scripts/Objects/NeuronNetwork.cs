@@ -55,6 +55,14 @@ namespace NeuralNet
 
 
 		/// <summary>
+		/// Re-initializes the values of this network using the given initializer.
+		/// </summary>
+		public void Reset(RNG rng, IValueInitializer valueInitializer)
+		{
+			for (int i = 0; i < Layers.Count; ++i)
+				valueInitializer.Init(rng, Layers[i].Weights, Layers[i].Biases, i);
+		}
+		/// <summary>
 		/// Gets the output of this network given the input.
 		/// </summary>
 		/// <param name="out_LayerWeightedInputs">

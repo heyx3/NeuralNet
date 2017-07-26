@@ -66,17 +66,33 @@ namespace NeuralNet
 		}
 
 
-		public HandwritingData(string directory)
+		/// <summary>
+		/// Tries to load the handwriting data files from the given directory.
+		/// </summary>
+		/// <param name="outErrMsg">
+		/// Outputs an error message, or the empty string if there was no error.
+		/// </param>
+		public HandwritingData(string directory, out string outErrMsg)
 		{
-			ReadSamples(Path.Combine(directory, File_TrainingInputs),
-						Path.Combine(directory, File_TrainingOutputs),
-						out TrainingImages);
-			ReadSamples(Path.Combine(directory, File_ValidationInputs),
-						Path.Combine(directory, File_ValidationOutputs),
-						out ValidationImages);
+			outErrMsg = ReadSamples(Path.Combine(directory, File_TrainingInputs),
+									Path.Combine(directory, File_TrainingOutputs),
+									out TrainingImages);
+			if (outErrMsg.Length > 0)
+			{
+				outErrMsg = "Error with training files: " + outErrMsg;
+				return;
+			}
+
+			outErrMsg = ReadSamples(Path.Combine(directory, File_ValidationInputs),
+									Path.Combine(directory, File_ValidationOutputs),
+									out ValidationImages);
+			if (outErrMsg.Length > 0)
+				outErrMsg = "Error with validation files: " + outErrMsg;
 		}
-		private void ReadSamples(string inputsPath, string outputsPath, out Image[] outArray)
+		private string ReadSamples(string inputsPath, string outputsPath, out Image[] outArray)
 		{
+			outArray = null;
+
 			try
 			{
 				using (var stream_inputs = new MemoryStream(File.ReadAllBytes(inputsPath)))
@@ -86,15 +102,15 @@ namespace NeuralNet
 				{
 					int inputMagicNumber = inputs.ReadInt32_BE(),
 						outputMagicNumber = outputs.ReadInt32_BE();
-					UnityEngine.Assertions.Assert.AreEqual(2051, inputMagicNumber,
-														   "Input magic number is wrong");
-					UnityEngine.Assertions.Assert.AreEqual(2049, outputMagicNumber,
-														   "Output magic number is wrong");
+					if (inputMagicNumber != 2051)
+						return "Input magic number isn't 2051";
+					if (outputMagicNumber != 2049)
+						return "Output magic number isn't 2049";
 
 					int nInputs = inputs.ReadInt32_BE(),
 						nOutputs = outputs.ReadInt32_BE();
 					if (nInputs != nOutputs)
-						throw new Exception(nInputs.ToString() + " Inputs != " + nOutputs + " Outputs");
+						return nInputs.ToString() + " Inputs != " + nOutputs + " Outputs";
 
 					outArray = new Image[nInputs];
 					int sizeY = inputs.ReadInt32_BE(),
@@ -106,12 +122,13 @@ namespace NeuralNet
 							for (int x = 0; x < sizeX; ++x)
 								outArray[i].Pixels[x, y] = inputs.ReadByte() / 255.0f;
 					}
+
+					return "";
 				}
 			}
 			catch (Exception e)
 			{
-				outArray = new Image[0];
-				Logging.LogError("Exception: " + e.Message + "\n" + e.StackTrace);
+				return "Exception: " + e.Message + "\n" + e.StackTrace;
 			}
 		}
 	}

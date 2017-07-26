@@ -24,13 +24,13 @@ namespace NeuralNet
 		/// <summary>
 		/// The filter for this layer's outputs.
 		/// </summary>
-		public IActivationFunc ActivationFunc { get; private set; }
+		public IActivationFunc ActivationFunc { get; set; }
 
 		public int NNodes { get { return Biases.Count; } }
 
 		public NeuronLayer(Matrix weights, Vector biases, IActivationFunc activationFunc)
 		{
-			Assert.AreEqual(Weights.NColumns, Biases.Count);
+			Assert.AreEqual(weights.NColumns, biases.Count);
 
 			Weights = weights;
 			Biases = biases;
@@ -53,6 +53,33 @@ namespace NeuralNet
 			out_WeightedInputs = new Vector(Weights, previousLayerOutputs) + Biases;
 			ActivationFunc.Evaluate(out_WeightedInputs, out_Outputs,
 									out_ActivationFuncDerivatives);
+		}
+
+		public void Resize(int size, int prevLayerSize)
+		{
+			Matrix oldWeights = Weights;
+			Vector oldBiases = Biases;
+			int oldNNodes = NNodes,
+				oldNPrevNodes = Weights.NColumns;
+
+			Weights = new Matrix(size, prevLayerSize);
+			Biases = new Vector(size);
+
+			for (int i = 0; i < oldNNodes; ++i)
+			{
+				Biases[i] = oldBiases[i];
+				for (int j = 0; j < Weights.NColumns; ++j)
+					if (j < oldNPrevNodes)
+						Weights[i, j] = oldWeights[i, j];
+					else
+						Weights[i, j] = 0.0f;
+			}
+			for (int i = oldNNodes; i < NNodes; ++i)
+			{
+				Biases[i] = 0.0f;
+				for (int j = 0; j < Weights.NColumns; ++j)
+					Weights[i, j] = 0.0f;
+			}
 		}
 	}
 }
