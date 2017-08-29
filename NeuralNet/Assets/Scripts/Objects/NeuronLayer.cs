@@ -30,7 +30,7 @@ namespace NeuralNet
 
 		public NeuronLayer(Matrix weights, Vector biases, IActivationFunc activationFunc)
 		{
-			Assert.AreEqual(weights.NColumns, biases.Count);
+			Assert.AreEqual(weights.NRows, biases.Count);
 
 			Weights = weights;
 			Biases = biases;
@@ -47,7 +47,7 @@ namespace NeuralNet
 						     Vector out_WeightedInputs, Vector out_Outputs,
 							 Vector out_ActivationFuncDerivatives)
 		{
-			Assert.AreEqual(Biases.Count, previousLayerOutputs.Count);
+			Assert.AreEqual(Weights.NColumns, previousLayerOutputs.Count);
 
 			//Get the activation, and evaluate it with the activation function.
 			out_WeightedInputs = new Vector(Weights, previousLayerOutputs) + Biases;
@@ -65,7 +65,7 @@ namespace NeuralNet
 			Weights = new Matrix(size, prevLayerSize);
 			Biases = new Vector(size);
 
-			for (int i = 0; i < oldNNodes; ++i)
+			for (int i = 0; i < oldNNodes & i < NNodes; ++i)
 			{
 				Biases[i] = oldBiases[i];
 				for (int j = 0; j < Weights.NColumns; ++j)

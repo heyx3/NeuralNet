@@ -41,12 +41,12 @@ namespace NeuralNet
 		{
 			Assert.AreEqual(lhs.NColumns, rhs.Count);
 
-			values = new float[rhs.Count];
+			values = new float[lhs.NRows];
 			for (int i = 0; i < Count; ++i)
 			{
 				float f = 0.0f;
-				for (int row = 0; row < lhs.NRows; ++row)
-					f += lhs[row, i] * rhs[i];
+				for (int col = 0; col < lhs.NColumns; ++col)
+					f += lhs[i, col] * rhs[col];
 				values[i] = f;
 			}
 		}
@@ -54,12 +54,12 @@ namespace NeuralNet
 		{
 			Assert.AreEqual(lhs.Count, rhs.NRows);
 
-			values = new float[lhs.Count];
+			values = new float[rhs.NColumns];
 			for (int i = 0; i < Count; ++i)
 			{
 				float f = 0.0f;
-				for (int col = 0; col < rhs.NColumns; ++col)
-					f += lhs[i] * rhs[i, col];
+				for (int row = 0; row < rhs.NRows; ++row)
+					f += lhs[row] * rhs[row, i];
 				values[i] = f;
 			}
 		}

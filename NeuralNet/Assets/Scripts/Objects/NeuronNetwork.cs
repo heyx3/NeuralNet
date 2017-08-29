@@ -62,6 +62,7 @@ namespace NeuralNet
 			for (int i = 0; i < Layers.Count; ++i)
 				valueInitializer.Init(rng, Layers[i].Weights, Layers[i].Biases, i);
 		}
+
 		/// <summary>
 		/// Gets the output of this network given the input.
 		/// </summary>

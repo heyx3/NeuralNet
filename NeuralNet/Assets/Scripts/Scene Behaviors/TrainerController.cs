@@ -82,6 +82,11 @@ namespace Tests
 		/// Affects the RNG used during training.
 		/// </summary>
 		public int Seed = 12345;
+		/// <summary>
+		/// The number of training samples per mini-batch.
+		/// A training "epoch" is a single run through all training samples, in batches of this size.
+		/// </summary>
+		public int MiniBatchSize = 500;
 
 		/// <summary>
 		/// The material/shader used for graphing a set of points stored in a Nx1 texture.
@@ -204,7 +209,7 @@ namespace Tests
 					return new KeyValuePair<Vector, Vector>(input, output);
 				};
 			//Create the array of layer sizes, including input/output layers.
-			int[] layerSizes = new int[HiddenLayerSizes.Count + 1];
+			int[] layerSizes = new int[HiddenLayerSizes.Count + 2];
 			layerSizes[0] = trainingData.PixelWidth * trainingData.PixelHeight;
 			layerSizes[layerSizes.Length - 1] = 10;
 			for (int i = 1; i < layerSizes.Length - 1; ++i)
@@ -213,7 +218,7 @@ namespace Tests
 			trainer = new NetworkTrainer(new NeuronNetwork(new System.Random(Seed),
 														   new ActivationFunc_Logistic(),
 														   new ValueInitializer_Gaussian(),
-														   HiddenLayerSizes.ToArray()),
+														   layerSizes),
 										 new CostFunc_Quadratic(),
 										 new GradientDescent_Constant(1.0f),
 										 trainingData.TrainingImages.Select(converter),
@@ -229,6 +234,16 @@ namespace Tests
 			GUILayout.Label(Seed.ToString());
 			if (GUILayout.Button("Generate new seed"))
 				Seed = UnityEngine.Random.Range(0, 99999);
+			GUILayout.EndHorizontal();
+
+			GUILayout.Space(15.0f);
+
+			//Training skip chance.
+			GUILayout.BeginHorizontal();
+			GUILayout.Label("Skip Chance:");
+			float f;
+			if (float.TryParse(GUILayout.TextField(trainer.SkipChance.ToString()), out f))
+				trainer.SkipChance = f;
 			GUILayout.EndHorizontal();
 
 			GUILayout.Space(35.0f);
@@ -360,7 +375,6 @@ namespace Tests
 										  new ValueInitializer_Gaussian(valueInit_Gaussian_Mean,
 																		valueInit_Gaussian_StdDev));
 				}
-				float f;
 				GUILayout.BeginHorizontal();
 					GUILayout.Label("Mean:");
 					if (float.TryParse(GUILayout.TextField(valueInit_Gaussian_Mean.ToString()), out f))
@@ -392,7 +406,42 @@ namespace Tests
 				GUILayout.Space(35.0f);
 			}
 
-			//TODO: Button to run epochs.
+			GUILayout.BeginHorizontal();
+				if (GUILayout.Button("Run 1 epoch"))
+				{
+					trainer.RunEpoch(MiniBatchSize, new System.Random(Seed));
+
+					Seed = UnityEngine.Random.Range(1, int.MaxValue);
+					AddSample(trainer.RunValidation());
+				}
+				if (GUILayout.Button("Run 10 epochs"))
+				{
+					var rng = new System.Random(Seed);
+					for (int i = 0; i < 10; ++i)
+						trainer.RunEpoch(MiniBatchSize, rng);
+
+					Seed = UnityEngine.Random.Range(1, int.MaxValue);
+					AddSample(trainer.RunValidation());
+				}
+				if (GUILayout.Button("Run 100 epochs"))
+				{
+					var rng = new System.Random(Seed);
+					for (int i = 0; i < 100; ++i)
+						trainer.RunEpoch(MiniBatchSize, rng);
+
+					Seed = UnityEngine.Random.Range(1, int.MaxValue);
+					AddSample(trainer.RunValidation());
+				}
+				if (GUILayout.Button("Run 1000 epochs"))
+				{
+					var rng = new System.Random(Seed);
+					for (int i = 0; i < 1000; ++i)
+						trainer.RunEpoch(MiniBatchSize, rng);
+
+					Seed = UnityEngine.Random.Range(1, int.MaxValue);
+					AddSample(trainer.RunValidation());
+				}
+			GUILayout.EndHorizontal();
 
 			GUILayout.EndArea();
 		}

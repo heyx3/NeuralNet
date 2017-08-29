@@ -19,6 +19,12 @@ namespace NeuralNet
 		public IGradientDescent GradientDescent;
 
 		/// <summary>
+		/// The chance of skipping a training/validation input.
+		/// Used to speed up training/validation.
+		/// </summary>
+		public float SkipChance = 0.0f;
+
+		/// <summary>
 		/// Inputs paired with the output they're supposed to have.
 		/// Training samples are used for training the network.
 		/// Validation samples are used to verify the network isn't overtrained
@@ -58,6 +64,44 @@ namespace NeuralNet
 
 
 		/// <summary>
+		/// Tests the network against the validation data to see how well it's doing.
+		/// Returns the average "cost" of the network's calculated output for each input.
+		/// </summary>
+		public float RunValidation()
+		{
+			//Set up the list of values and derivatives for each layer.
+			List<Vector> weightedInputs = new List<Vector>(),
+						 outputs = new List<Vector>(),
+						 derivatives = new List<Vector>();
+			for (int layerI = 0; layerI < Network.Layers.Count; ++layerI)
+			{
+				weightedInputs.Add(new Vector(Network.Layers[layerI].NNodes));
+				outputs.Add(new Vector(Network.Layers[layerI].NNodes));
+				derivatives.Add(new Vector(Network.Layers[layerI].NNodes));
+			}
+
+			double avgCost = 0.0;
+			foreach (var sample in ValidationSamples)
+			{
+				if (SkipChance > 0.0f && UnityEngine.Random.value < SkipChance)
+					continue;
+
+				//Evaluate the network.
+				Network.Evaluate(sample.Key, weightedInputs, outputs, derivatives);
+				var output = outputs[outputs.Count - 1];
+
+				//Calculate the cost.
+				float cost;
+				Vector dummyDerivative = derivatives[derivatives.Count - 1];
+				CostFunc.GetCost(sample.Value, outputs[outputs.Count - 1],
+								 out cost, dummyDerivative);
+
+				avgCost += cost;
+			}
+			return (float)(avgCost / ValidationSamples.Count);
+		}
+
+		/// <summary>
 		/// Runs several iterations of the training algorithm,
 		///     where each iteration uses a different subset of the training samples.
 		/// The epoch finishes when all training samples have been used.
@@ -67,7 +111,14 @@ namespace NeuralNet
 		/// </param>
 		public void RunEpoch(int miniBatchSize, RNG rng)
 		{
+			//TODO: Run in different thread, provide callback/progress bar.
+			//TODO: Find a more memory-/allocation-efficient way to re-list training samples.
+
 			var unusedSamples = new List<KeyValuePair<Vector, Vector>>(TrainingSamples.Count);
+			foreach (var sample in TrainingSamples)
+				if (SkipChance < float.Epsilon || UnityEngine.Random.value >= SkipChance)
+					unusedSamples.Add(sample);
+
 			var currentSamples = new List<KeyValuePair<Vector, Vector>>(miniBatchSize);
 
 			NIterations = 0;
@@ -101,7 +152,7 @@ namespace NeuralNet
 		/// <param name="sampleBatch">
 		/// The training samples to use, or "null" to use all of this instance's samples.
 		/// </param>
-		public float RunIteration(List<KeyValuePair<Vector, Vector>> sampleBatch = null)
+		public void RunIteration(List<KeyValuePair<Vector, Vector>> sampleBatch = null)
 		{
 			if (sampleBatch == null)
 			{
@@ -123,7 +174,6 @@ namespace NeuralNet
 			//For every sample, run the network, get its cost, then use "backpropagation"
 			//    to get the derivatives of the cost with respect to all weights/biases.
 			//Average these derivatives across all samples.
-			List<float> costs = new List<float>(sampleBatch.Count);
 			var biasDerivatives = new List<Vector>(Network.Layers.Count);
 			var weightDerivatives = new List<Matrix>(Network.Layers.Count);
 			//Initialize the derivatives to 0.
@@ -154,7 +204,6 @@ namespace NeuralNet
 				Vector costDerivative = new Vector(outputs[outputs.Count - 1].Count);
 				CostFunc.GetCost(sample.Value, outputs[outputs.Count - 1],
 								 out cost, costDerivative);
-				costs.Add(cost);
 
 				//Do backpropagation to get the derivatives of the biases and weights.
 				DoBackpropagation(sample.Key, weightedInputs, outputs, derivatives, costDerivative,
@@ -179,9 +228,8 @@ namespace NeuralNet
 			//Run gradient descent.
 			GradientDescent.ModifyNetwork(Network, NIterations, NEpochs,
 										  biasDerivatives, weightDerivatives);
-
-			return costs.Sum() / (float)costs.Count;
 		}
+
 		/// <summary>
 		/// Efficiently finds the derivative of the cost function with respect to
 		///     every bias and weight in the network.
